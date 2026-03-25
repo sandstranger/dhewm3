@@ -29,7 +29,7 @@ endif()
 
 option(LINUX_RELEASE_BINS "Set RPATH to \$ORIGIN/libs/ for Linux binary releases" OFF)
 
-set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/sys/cmake")
+set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/sys/cmake")
 
 if(LINUX_RELEASE_BINS)
 	message(STATUS "Setting RPATH to \$ORIGIN/libs/ so you can put dependencies in there")
@@ -49,7 +49,7 @@ include(GNUInstallDirs OPTIONAL RESULT_VARIABLE GNUINSTALLDIRS)
 include(TestBigEndian)
 
 option(CORE			"Build the core" ON)
-option(BASE			"Build the base game code" ON)
+option(BASE			"Build the base-dhewm3 game code" ON)
 option(D3XP			"Build the d3xp game code" ON)
 if(MSVC)
 	option(TOOLS		"Build the tools game code (Visual Studio+SDL2/SDL3 only)" OFF)
@@ -214,7 +214,9 @@ elseif (SDL2)
 	if(APPLE OR WIN32)
 		set(SDL2_BUILDING_LIBRARY TRUE)
 	endif()
+if (NOT ANDROID)
 	find_package(SDL2 REQUIRED)
+endif()
 	include_directories(${SDL2_INCLUDE_DIR})
 	set(SDLx_LIBRARY ${SDL2_LIBRARY})
 else()
@@ -373,6 +375,7 @@ if(DEFINED ENV{MSYSTEM})
 	set(CURL_NO_CURL_CMAKE ON)
 endif()
 
+if (NOT ANDROID)
 find_package(CURL QUIET)
 if(CURL_FOUND)
 	set(ID_ENABLE_CURL ON)
@@ -382,6 +385,11 @@ else()
 	message(WARNING "libcurl not found, server downloads won't be available (apart from that dhewm3 will work)")
 	set(ID_ENABLE_CURL OFF)
 	set(CURL_LIBRARY "")
+endif()
+else()
+	set(ID_ENABLE_CURL ON)
+	include_directories(${CURL_INCLUDE_DIR})
+	message(STATUS "libcurl found and enabled")
 endif()
 
 if(TRACY)
@@ -440,7 +448,7 @@ if(NOT WIN32)
 	check_c_source_compiles( "#include <backtrace.h>
 	int main() { backtrace_create_state(NULL, 0, NULL, NULL); return 0; }" HAVE_LIBBACKTRACE )
 	unset(CMAKE_REQUIRED_LIBRARIES)
-
+if (NOT ANDROID)
 	if(HAVE_LIBBACKTRACE)
 		set(sys_libs ${sys_libs} backtrace)
 		add_definitions(-DD3_HAVE_LIBBACKTRACE)
@@ -448,6 +456,7 @@ if(NOT WIN32)
 	else()
 		message(WARNING "libbacktrace wasn't found. It's not required but recommended, because it provides useful backtraces if dhewm3 crashes")
 	endif()
+endif()
 endif() # NOT WIN32
 
 # check if this is some kind of clang (Clang, AppleClang, whatever)
@@ -699,9 +708,11 @@ set(bindir		"${CMAKE_INSTALL_FULL_BINDIR}")
 set(libdir		"${CMAKE_INSTALL_FULL_LIBDIR}/dhewm3")
 set(datadir		"${CMAKE_INSTALL_FULL_DATADIR}/dhewm3")
 
+set (BINARY_DIR "${CMAKE_BINARY_DIR}/build")
+
 configure_file(
-	"${CMAKE_SOURCE_DIR}/config.h.in"
-	"${CMAKE_BINARY_DIR}/config.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/config.h.in"
+	"${BINARY_DIR}/config.h"
 )
 
 if(NOT MSVC)
@@ -796,7 +807,7 @@ endif()
 
 # globs all the headers from ${PATHPREFIX}/ and adds them to ${SRCLIST}
 function(add_globbed_headers SRCLIST PATHPREFIX)
-	file(GLOB_RECURSE tmp_hdrs RELATIVE "${CMAKE_SOURCE_DIR}" "${PATHPREFIX}/*.h")
+	file(GLOB_RECURSE tmp_hdrs RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "${PATHPREFIX}/*.h")
 	set(${SRCLIST} ${tmp_hdrs} ${${SRCLIST}} PARENT_SCOPE)
 endfunction()
 
@@ -1328,8 +1339,8 @@ if(AROS)
 	)
 elseif(APPLE)
 	set(OSX_RESOURCE_FILES
-		"${CMAKE_SOURCE_DIR}/sys/osx/Doom3.icns"
-		"${CMAKE_SOURCE_DIR}/sys/osx/Doom 3.rsrc"
+		"${CMAKE_CURRENT_SOURCE_DIR}/sys/osx/Doom3.icns"
+		"${CMAKE_CURRENT_SOURCE_DIR}/sys/osx/Doom 3.rsrc"
 	)
 
 	set_source_files_properties(${OSX_RESOURCE_FILES} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
@@ -1386,7 +1397,7 @@ elseif(WIN32)
 	else()
 		# adding both .rc files breaks the build, but I think it only contains the icon
 		# and doom.rc also contains that (+icons for editor etc, AFAIK), so this is fine
-		set(src_sys_core ${src_sys_core} "${CMAKE_SOURCE_DIR}/sys/win32/rc/dhewm3.rc" )
+		set(src_sys_core ${src_sys_core} "${CMAKE_CURRENT_SOURCE_DIR}/sys/win32/rc/dhewm3.rc" )
 	endif()
 
 else()
@@ -1405,8 +1416,8 @@ else()
 	)
 endif()
 
-include_directories(${CMAKE_BINARY_DIR})
-include_directories(${CMAKE_SOURCE_DIR})
+include_directories(${BINARY_DIR})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 add_library(idlib STATIC ${src_idlib})
 if(SDL3)
@@ -1429,14 +1440,14 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} PREFIX neo FILES ${src_idlib})
 if(HARDLINK_GAME)
 	if(BASE)
 		set(src_core ${src_core} ${src_game})
-		set(game_includes "${CMAKE_SOURCE_DIR}/game")
+		set(game_includes "${CMAKE_CURRENT_SOURCE_DIR}/game")
 		if(D3XP)
-			message(WARNING "hardlinking the base game, d3xp will not be supported (disable BASE for D3XP support with HARDLINK_GAME)")
+			message(WARNING "hardlinking the base-dhewm3 game, d3xp will not be supported (disable BASE for D3XP support with HARDLINK_GAME)")
 		endif()
 		
 	elseif(D3XP)
 		set(src_core ${src_core} ${src_d3xp})
-		set(game_includes "${CMAKE_SOURCE_DIR}/d3xp")
+		set(game_includes "${CMAKE_CURRENT_SOURCE_DIR}/d3xp")
 	endif()
 endif()# HARDLINK_GAME
 
@@ -1456,7 +1467,7 @@ if(CORE)
 
 	source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} PREFIX neo FILES ${src_core} ${src_sys_base} ${src_sys_core} ${src_imgui} ${src_editor_tools})
 
-	target_include_directories(${DHEWM3BINARY} PRIVATE "${CMAKE_SOURCE_DIR}/libs/imgui")
+	target_include_directories(${DHEWM3BINARY} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/libs/imgui")
 
 if(HARDLINK_GAME)
 	set_target_properties(${DHEWM3BINARY} PROPERTIES COMPILE_DEFINITIONS "${TOOLS_DEFINES}")
@@ -1527,28 +1538,28 @@ endif()
 
 if(BASE AND NOT HARDLINK_GAME)
 	if (AROS)
-		add_executable(base ${src_game} sys/aros/aros_dynmodule.cpp sys/aros/aros_dynmodcommon.cpp)
-		target_link_libraries(base idlib dynmodglue)
-		set_target_properties(base PROPERTIES OUTPUT_NAME "base.aros-${AROS_ARCH}")
+		add_executable(base-dhewm3 ${src_game} sys/aros/aros_dynmodule.cpp sys/aros/aros_dynmodcommon.cpp)
+		target_link_libraries(base-dhewm3 idlib dynmodglue)
+		set_target_properties(base-dhewm3 PROPERTIES OUTPUT_NAME "base-dhewm3.aros-${AROS_ARCH}")
 	else()
-		add_library(base SHARED ${src_game})
+		add_library(base-dhewm3 SHARED ${src_game})
 	endif()
 	
 	source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} PREFIX neo FILES ${src_game})
 	
-	set_target_properties(base PROPERTIES PREFIX "")
-	set_target_properties(base PROPERTIES COMPILE_DEFINITIONS "GAME_DLL")
-	target_include_directories(base PRIVATE "${CMAKE_SOURCE_DIR}/game")
-	set_target_properties(base PROPERTIES LINK_FLAGS "${ldflags}")
-	set_target_properties(base PROPERTIES INSTALL_NAME_DIR "@executable_path")
+	set_target_properties(base-dhewm3 PROPERTIES PREFIX "")
+	set_target_properties(base-dhewm3 PROPERTIES COMPILE_DEFINITIONS "GAME_DLL")
+	target_include_directories(base-dhewm3 PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/game")
+	set_target_properties(base-dhewm3 PROPERTIES LINK_FLAGS "${ldflags}")
+	set_target_properties(base-dhewm3 PROPERTIES INSTALL_NAME_DIR "@executable_path")
 	if (AROS)
-		target_link_libraries(base idlib dynmod)
+		target_link_libraries(base-dhewm3 idlib dynmod)
 	else()
-		target_link_libraries(base idlib)
+		target_link_libraries(base-dhewm3 idlib)
 	endif()
 
 	if(NOT APPLE AND NOT WIN32)
-		install(TARGETS base
+		install(TARGETS base-dhewm3
 				RUNTIME DESTINATION "${bindir}"
 				LIBRARY DESTINATION "${libdir}"
 				ARCHIVE DESTINATION "${libdir}"
@@ -1567,7 +1578,7 @@ if(D3XP AND NOT HARDLINK_GAME)
 	source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} PREFIX neo FILES ${src_d3xp})
 	set_target_properties(d3xp PROPERTIES PREFIX "")
 	set_target_properties(d3xp PROPERTIES COMPILE_DEFINITIONS "GAME_DLL;_D3XP;CTF")
-	target_include_directories(d3xp PRIVATE "${CMAKE_SOURCE_DIR}/d3xp")
+	target_include_directories(d3xp PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/d3xp")
 	set_target_properties(d3xp PROPERTIES LINK_FLAGS "${ldflags}")
 	set_target_properties(d3xp PROPERTIES INSTALL_NAME_DIR "@executable_path")
 	if (AROS)
