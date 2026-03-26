@@ -1452,6 +1452,7 @@ if(HARDLINK_GAME)
 endif()# HARDLINK_GAME
 
 if(CORE)
+if (NOT ANDROID)
 	add_executable(${DHEWM3BINARY} WIN32 MACOSX_BUNDLE
 		${src_core}
 		${src_sys_base}
@@ -1459,7 +1460,16 @@ if(CORE)
 		${src_imgui}
 		${src_editor_tools}
 	)
-	
+else()
+	add_library(${DHEWM3BINARY} SHARED
+		${src_core}
+		${src_sys_base}
+		${src_sys_core}
+		${src_imgui}
+		${src_editor_tools}
+	)
+endif()
+
 	if(MSVC AND CMAKE_MAJOR_VERSION GREATER 3 OR ( CMAKE_MAJOR_VERSION EQUAL 3 AND CMAKE_MINOR_VERSION GREATER_EQUAL 6 ))
 		# CMake >= 3.6 supports setting the default project started for debugging (instead of trying to launch ALL_BUILD ...)
 		set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${DHEWM3BINARY})
@@ -1547,7 +1557,6 @@ if(BASE AND NOT HARDLINK_GAME)
 	
 	source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} PREFIX neo FILES ${src_game})
 	
-	set_target_properties(base-dhewm3 PROPERTIES PREFIX "")
 	set_target_properties(base-dhewm3 PROPERTIES COMPILE_DEFINITIONS "GAME_DLL")
 	target_include_directories(base-dhewm3 PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/game")
 	set_target_properties(base-dhewm3 PROPERTIES LINK_FLAGS "${ldflags}")
@@ -1576,7 +1585,6 @@ if(D3XP AND NOT HARDLINK_GAME)
 		add_library(d3xp SHARED ${src_d3xp})
 	endif()
 	source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} PREFIX neo FILES ${src_d3xp})
-	set_target_properties(d3xp PROPERTIES PREFIX "")
 	set_target_properties(d3xp PROPERTIES COMPILE_DEFINITIONS "GAME_DLL;_D3XP;CTF")
 	target_include_directories(d3xp PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/d3xp")
 	set_target_properties(d3xp PROPERTIES LINK_FLAGS "${ldflags}")
