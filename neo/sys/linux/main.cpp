@@ -53,11 +53,6 @@ If you have questions concerning this license or the applicable additional terms
 #include <unistd.h> // readlink(), amongst others
 #endif
 
-#if ANDROID
-#include <string>
-using namespace std;
-#endif
-
 #if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__DragonFly__)
 #include <sys/sysctl.h> // for sysctl() to get path to executable
 #endif
@@ -86,7 +81,7 @@ static char path_exe[PATH_MAX];
 static char save_path[PATH_MAX];
 
 #if ANDROID
-string nativeLibsPath;
+char* nativeLibsPath;
 #endif
 
 const char* Posix_GetSavePath()

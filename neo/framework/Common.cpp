@@ -63,9 +63,7 @@ If you have questions concerning this license or the applicable additional terms
 #include "Session_local.h" // DG: For FT_IsDemo/isDemo() hack
 
 #if ANDROID
-#include <string>
-using namespace std;
-extern string nativeLibsPath;
+extern char* nativeLibsPath;
 #endif
 
 #define	MAX_PRINT_MSG_SIZE	4096
@@ -2713,7 +2711,7 @@ void idCommonLocal::LoadGameDLLbyName( const char *dll, idStr& s ) {
 		}
     #elif ANDROID
     if (!gameDLL) {
-        s = nativeLibsPath.c_str();
+        s = nativeLibsPath;
         s.AppendPath(dll);
         gameDLL = sys->DLL_Load(s);
     }
