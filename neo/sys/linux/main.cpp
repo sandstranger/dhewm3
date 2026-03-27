@@ -53,6 +53,11 @@ If you have questions concerning this license or the applicable additional terms
 #include <unistd.h> // readlink(), amongst others
 #endif
 
+#if ANDROID
+#include <string>
+using namespace std;
+#endif
+
 #if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__DragonFly__)
 #include <sys/sysctl.h> // for sysctl() to get path to executable
 #endif
@@ -79,6 +84,10 @@ If you have questions concerning this license or the applicable additional terms
 static char path_argv[PATH_MAX];
 static char path_exe[PATH_MAX];
 static char save_path[PATH_MAX];
+
+#if ANDROID
+string nativeLibsPath;
+#endif
 
 const char* Posix_GetSavePath()
 {
@@ -439,9 +448,9 @@ int main(int argc, char **argv) {
 	// etc when using a locale that uses ',' as a float radix.
 	// so set $LC_ALL to "C".
 	setenv("LC_ALL", "C", 1);
-
+#ifndef ANDROID
 	Posix_InitSignalHandlers();
-
+#endif
 	if ( argc > 1 ) {
 		common->Init( argc-1, &argv[1] );
 	} else {

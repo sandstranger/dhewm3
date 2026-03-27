@@ -1317,14 +1317,26 @@ void Sys_DebugPrintf( const char *fmt, ... ) {
 
 	tty_Hide();
 	va_start( argptr, fmt );
+#if ANDROID
+	char p[1000];
+	idStr::vsnPrintf(p, sizeof(p), fmt, argptr);
+	SDL_Log("D3: %s",p);
+#else
 	Sys_VPrintf( fmt, argptr );
+#endif
 	va_end( argptr );
 	tty_Show();
 }
 
 void Sys_DebugVPrintf( const char *fmt, va_list arg ) {
 	tty_Hide();
+#if ANDROID
+	char p[1000];
+	idStr::vsnPrintf(p, sizeof(p), fmt, arg);
+	SDL_Log("D3: %s",p);
+#else
 	Sys_VPrintf( fmt, arg );
+#endif
 	tty_Show();
 }
 
@@ -1332,7 +1344,13 @@ void Sys_Printf(const char *msg, ...) {
 	va_list argptr;
 	tty_Hide();
 	va_start( argptr, msg );
+#if ANDROID
+	char p[1000];
+	idStr::vsnPrintf(p, sizeof(p), msg, argptr);
+	SDL_Log("D3: %s",p);
+#else
 	Sys_VPrintf( msg, argptr );
+#endif
 	va_end( argptr );
 	tty_Show();
 }

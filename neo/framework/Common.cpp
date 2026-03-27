@@ -63,6 +63,12 @@ If you have questions concerning this license or the applicable additional terms
 #include "GameCallbacks_local.h"
 #include "Session_local.h" // DG: For FT_IsDemo/isDemo() hack
 
+#if ANDROID
+#include <string>
+using namespace std;
+extern string nativeLibsPath;
+#endif
+
 #define	MAX_PRINT_MSG_SIZE	4096
 #define MAX_WARNING_LIST	256
 
@@ -90,7 +96,11 @@ struct version_s {
 idCVar com_version( "si_version", version.string, CVAR_SYSTEM|CVAR_ROM|CVAR_SERVERINFO, "engine version" );
 idCVar com_skipRenderer( "com_skipRenderer", "0", CVAR_BOOL|CVAR_SYSTEM, "skip the renderer completely" );
 idCVar com_machineSpec( "com_machineSpec", "-1", CVAR_INTEGER | CVAR_ARCHIVE | CVAR_SYSTEM, "hardware classification, -1 = not detected, 0 = low quality, 1 = medium quality, 2 = high quality, 3 = ultra quality" );
+#ifndef ANDROID
 idCVar com_purgeAll( "com_purgeAll", "0", CVAR_BOOL | CVAR_ARCHIVE | CVAR_SYSTEM, "purge everything between level loads" );
+#else
+idCVar com_purgeAll( "com_purgeAll", "1", CVAR_BOOL | CVAR_ARCHIVE | CVAR_SYSTEM, "purge everything between level loads" );
+#endif
 idCVar com_memoryMarker( "com_memoryMarker", "-1", CVAR_INTEGER | CVAR_SYSTEM | CVAR_INIT, "used as a marker for memory stats" );
 idCVar com_preciseTic( "com_preciseTic", "1", CVAR_BOOL|CVAR_SYSTEM, "run one game tick every async thread update" );
 #define ASYNCSOUND_INFO "0: mix sound inline, 1 or 3: async update every 16ms 2: async update about every 100ms (original behavior)"
@@ -465,6 +475,7 @@ void idCommonLocal::VPrintf( const char *fmt, va_list args ) {
 	// remove any color codes
 	idStr::RemoveColors( msg );
 
+#ifndef ANDROID
 	if ( com_enableDebuggerServer.GetBool( ) ) 	{
 		// print to script debugger server
 		if ( com_editors & EDITOR_DEBUGGER )
@@ -476,6 +487,9 @@ void idCommonLocal::VPrintf( const char *fmt, va_list args ) {
 	} else {
 		Sys_Printf( "%s", msg );
 	}
+#else
+	Sys_Printf( "%s", msg );
+#endif
 #if 0	// !@#
 #if defined(_DEBUG) && defined(WIN32)
 	if ( strlen( msg ) < 512 ) {
@@ -1574,9 +1588,13 @@ void Com_ExecMachineSpec_f( const idCmdArgs &args ) {
 		cvarSystem->SetCVarInteger( "r_multiSamples", 0, CVAR_ARCHIVE );
 	}
 
+#ifndef ANDROID
 	cvarSystem->SetCVarBool( "com_purgeAll", false, CVAR_ARCHIVE );
-	cvarSystem->SetCVarBool( "r_forceLoadImages", false, CVAR_ARCHIVE );
+#else
+	cvarSystem->SetCVarBool( "com_purgeAll", true, CVAR_ARCHIVE );
+#endif
 
+	cvarSystem->SetCVarBool( "r_forceLoadImages", true, CVAR_ARCHIVE );
 	cvarSystem->SetCVarBool( "g_decals", true, CVAR_ARCHIVE );
 	cvarSystem->SetCVarBool( "g_projectileLights", true, CVAR_ARCHIVE );
 	cvarSystem->SetCVarBool( "g_doubleVision", true, CVAR_ARCHIVE );
@@ -2387,7 +2405,7 @@ void idCommonLocal::InitCommands( void ) {
 
 	cmdSystem->AddCommand( "dhewm3Settings", Com_Dhewm3Settings_f, CMD_FL_SYSTEM, "Toggles (opens/closes) the (advanced) dhewm3 settings menu" );
 
-#if	!defined( ID_DEDICATED )
+#if	!defined( ID_DEDICATED ) && !ANDROID
 	// compilers
 	cmdSystem->AddCommand( "dmap", Dmap_f, CMD_FL_TOOL, "compiles a map", idCmdSystem::ArgCompletion_MapName );
 	cmdSystem->AddCommand( "renderbump", RenderBump_f, CMD_FL_TOOL, "renders a bump map", idCmdSystem::ArgCompletion_ModelName );
@@ -2507,6 +2525,7 @@ void idCommonLocal::Frame( void ) {
 			InitSIMD();
 		}
 
+#ifndef ANDROID
 		if ( com_enableDebuggerServer.IsModified() ) {
 			if ( com_enableDebuggerServer.GetBool() ) {
 				DebuggerServerInit();
@@ -2514,7 +2533,7 @@ void idCommonLocal::Frame( void ) {
 				DebuggerServerShutdown();
 			}
 		}
-
+#endif
 		eventLoop->RunEventLoop();
 
 		// DG: prepare new ImGui frame - I guess this is a good place, as all new events should be available?
@@ -2680,6 +2699,12 @@ void idCommonLocal::LoadGameDLLbyName( const char *dll, idStr& s ) {
 			s.AppendPath(dll);
 			gameDLL = sys->DLL_Load(s);
 		}
+    #elif ANDROID
+    if (!gameDLL) {
+        s = nativeLibsPath.c_str();
+        s.AppendPath(dll);
+        gameDLL = sys->DLL_Load(s);
+    }
 	#elif defined(MACOS_X)
 		// then the binary dir in the bundle on osx
 		if (!gameDLL && Sys_GetPath(PATH_EXE, s)) {
@@ -2725,6 +2750,9 @@ void idCommonLocal::LoadGameDLL( void ) {
 
 	gameDLL = 0;
 
+#if ANDROID
+    strcpy(dll,"/libbase-dhewm3.so");
+#else
 	sys->DLL_GetFileName(fs_game, dll, sizeof(dll));
 	LoadGameDLLbyName(dll, s);
 
@@ -2749,7 +2777,7 @@ void idCommonLocal::LoadGameDLL( void ) {
 			LoadGameDLLbyName(dll, s);
 		}
 	}
-
+#endif
 	if ( !gameDLL ) {
 		common->FatalError( "couldn't load game dynamic library '%s'", dll );
 		return;
@@ -2845,6 +2873,11 @@ void idCommonLocal::SetMachineSpec( void ) {
 	int sysRam = Sys_GetSystemRam();
 
 	Printf( "Detected\n\t%i MB of System memory\n\n", sysRam );
+
+#ifdef __ANDROID__
+    com_machineSpec.SetInteger( 0 );
+    return;
+#endif
 
 	if ( sysRam >= 1024 ) {
 		Printf( "This system qualifies for Ultra quality!\n" );
@@ -3345,10 +3378,11 @@ void idCommonLocal::InitGame( void ) {
 	// load the game dll
 	LoadGameDLL();
 
+#ifndef ANDROID
 	// startup the script debugger
 	if ( com_enableDebuggerServer.GetBool( ) )
 		DebuggerServerInit( );
-
+#endif
 	PrintLoadingMessage( common->GetLanguageDict()->GetString( "#str_04351" ) );
 
 	// init the session
@@ -3379,10 +3413,11 @@ void idCommonLocal::ShutdownGame( bool reloading ) {
 		sw->StopAllSounds();
 	}
 
+#ifndef ANDROID
 	// shutdown the script debugger
 	if ( com_enableDebuggerServer.GetBool() )	
 		DebuggerServerShutdown();
-
+#endif
 	idAsyncNetwork::client.Shutdown();
 
 	// shut down the session
@@ -3451,11 +3486,13 @@ static bool isDemo( void )
 
 static bool updateDebugger( idInterpreter *interpreter, idProgram *program, int instructionPointer )
 {
+#ifndef ANDROID
 	if (com_editors & EDITOR_DEBUGGER) 
 	{
 		DebuggerServerCheckBreakpoint( interpreter, program, instructionPointer );
 		return true;
 	}
+#endif
 	return false;
 }
 

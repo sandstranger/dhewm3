@@ -1790,9 +1790,10 @@ static void handleMouseGrab() {
 		flags |= GRAB_GRABMOUSE;
 	if ( relativeMouse )
 		flags |= GRAB_RELATIVEMOUSE;
+#ifndef ANDROID
 	if ( enableTextInput )
 		flags |= GRAB_ENABLETEXTINPUT;
-
+#endif
 	GLimp_GrabInput( flags );
 }
 
