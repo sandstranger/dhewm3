@@ -140,6 +140,7 @@ public:
 	virtual	void VPCALL MinMax( idVec3 &min,		idVec3 &max,			const idVec3 *src,		const int count ) = 0;
 	virtual	void VPCALL MinMax( idVec3 &min,		idVec3 &max,			const idDrawVert *src,	const int count ) = 0;
 	virtual	void VPCALL MinMax( idVec3 &min,		idVec3 &max,			const idDrawVert *src,	const int *indexes,		const int count ) = 0;
+	virtual	void VPCALL MinMax( idVec3 &min,		idVec3 &max,			const idDrawVert *src,	const short *indexes,		const int count ) = 0;
 
 	virtual	void VPCALL Clamp( float *dst,			const float *src,		const float min,		const float max,		const int count ) = 0;
 	virtual	void VPCALL ClampMin( float *dst,		const float *src,		const float min,		const int count ) = 0;
@@ -184,6 +185,14 @@ public:
 	virtual void VPCALL OverlayPointCull( byte *cullBits, idVec2 *texCoords, const idPlane *planes, const idDrawVert *verts, const int numVerts ) = 0;
 	virtual void VPCALL DeriveTriPlanes( idPlane *planes, const idDrawVert *verts, const int numVerts, const int *indexes, const int numIndexes ) = 0;
 	virtual void VPCALL DeriveTangents( idPlane *planes, idDrawVert *verts, const int numVerts, const int *indexes, const int numIndexes ) = 0;
+	virtual void VPCALL DeriveTriPlanes( idPlane *planes, const idDrawVert *verts, const int numVerts, const short *indexes, const int numIndexes ) = 0;
+	virtual void VPCALL DeriveTangents( idPlane *planes, idDrawVert *verts, const int numVerts, const short *indexes, const int numIndexes ) = 0;
+/**
+ * Pure virtual function to derive unsmoothed tangents for vertices
+ * @param verts - Array of draw vertices to calculate tangents for
+ * @param dominantTris - Array of dominant triangle information
+ * @param numVerts - Number of vertices in the verts array
+ */
 	virtual void VPCALL DeriveUnsmoothedTangents( idDrawVert *verts, const dominantTri_s *dominantTris, const int numVerts ) = 0;
 	virtual void VPCALL NormalizeTangents( idDrawVert *verts, const int numVerts ) = 0;
 	virtual void VPCALL CreateTextureSpaceLightVectors( idVec3 *lightVectors, const idVec3 &lightOrigin, const idDrawVert *verts, const int numVerts, const int *indexes, const int numIndexes ) = 0;

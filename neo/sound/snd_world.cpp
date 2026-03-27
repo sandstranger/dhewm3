@@ -1736,6 +1736,18 @@ void idSoundWorldLocal::AddChannelContribution( idSoundEmitterLocal *sound, idSo
 
 	// DG: moved global volume scale down to after clamping to 1.0
 
+#if ANDROID
+	// global volume scale
+	volume *= soundSystemLocal.dB2Scale( idSoundSystemLocal::s_volume.GetFloat() );
+
+	// DG: scaling the volume of *everything* down a bit to prevent some sounds
+	//     (like shotgun shot) being "drowned" when lots of other loud sounds
+	//     (like shotgun impacts on metal) are played at the same time
+	//     I guess this happens because the loud sounds mixed together are too loud so
+	//     OpenAL just makes *everything* quiter or sth like that.
+	//     See also https://github.com/dhewm/dhewm3/issues/179
+	volume *= 0.333f; // (0.333 worked fine, 0.5 didn't)
+#endif
 	// volume fading
 	float	fadeDb = chan->channelFade.FadeDbAt44kHz( current44kHz );
 	volume *= soundSystemLocal.dB2Scale( fadeDb );
@@ -1793,6 +1805,7 @@ void idSoundWorldLocal::AddChannelContribution( idSoundEmitterLocal *sound, idSo
 		}
 	}
 
+#ifndef ANDROID
 	// DG: scaling the volume of *everything* down a bit to prevent some sounds
 	//     (like shotgun shot) being "drowned" when lots of other loud sounds
 	//     (like shotgun impacts on metal) are played at the same time
@@ -1815,7 +1828,7 @@ void idSoundWorldLocal::AddChannelContribution( idSoundEmitterLocal *sound, idSo
 	// global volume scale - DG: now done after clamping to 1.0, so reducing the
 	// global volume doesn't cause the different weapon volume issues described above
 	volume *= soundSystemLocal.dB2Scale( idSoundSystemLocal::s_volume.GetFloat() );
-
+#endif
 	//
 	// do we have anything to add?
 	//

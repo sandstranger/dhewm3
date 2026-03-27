@@ -386,8 +386,13 @@ const char *idUserInterfaceLocal::HandleEvent( const sysEvent_t *event, int _tim
 			//     even if the actual resolution is higher => mouse moved too fast
 			renderBackendInfo_t backendInfo = {};
 			renderSystem->GetBackendInfo( backendInfo );
+#ifndef ANDROID
 			float w = backendInfo.winWidth;
 			float h = backendInfo.winHeight;
+#else
+			float w = backendInfo.vidWidth;
+			float h = backendInfo.vidHeight;
+#endif
 			if( w <= 0.0f || h <= 0.0f ) {
 				w = VIRTUAL_WIDTH;
 				h = VIRTUAL_HEIGHT;
