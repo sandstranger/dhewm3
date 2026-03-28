@@ -63,10 +63,6 @@ If you have questions concerning this license or the applicable additional terms
 #include "GameCallbacks_local.h"
 #include "Session_local.h" // DG: For FT_IsDemo/isDemo() hack
 
-#if ANDROID
-extern char* nativeLibsPath;
-#endif
-
 #define	MAX_PRINT_MSG_SIZE	4096
 #define MAX_WARNING_LIST	256
 
@@ -153,6 +149,10 @@ unsigned int	com_msgID = -1;
 #ifdef __DOOM_DLL__
 idGame *		game = NULL;
 idGameEdit *	gameEdit = NULL;
+#endif
+
+#if ANDROID
+static char* nativeLibsPath;
 #endif
 
 // writes si_version to the config file - in a kinda obfuscated way

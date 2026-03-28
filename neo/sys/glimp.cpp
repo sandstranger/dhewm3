@@ -140,6 +140,18 @@ static void SetSDLIcon()
 
 #else // SDL2 and SDL1.2
 
+#if ANDROID
+static bool g_useGLES2_0 = false;
+
+extern "C" {
+__attribute__((used)) __attribute__((visibility("default")))
+void setUseGLES2_0State(const bool useGLES2_0) {
+	g_useGLES2_0 = useGLES2_0;
+}
+}
+#endif
+
+
 static void SetSDLIcon()
 {
 	Uint32 rmask, gmask, bmask, amask;
@@ -185,9 +197,10 @@ bool GLimp_Init(glimpParms_t parms) {
 	assert(SDL_WasInit(SDL_INIT_VIDEO));
 
 	My_SDL_WindowFlags flags = SDL_WINDOW_OPENGL;
-
+#ifndef ANDROID
 	if (parms.fullScreen == 1)
 	{
+#endif
 #if SDL_VERSION_ATLEAST(3, 0, 0)
 		// in SDL3 windows with SDL_WINDOW_FULLSCREEN set are fullscreen-desktop by default
 		// and for exclusive fullscreen SDL_SetWindowFullscreenMode() must be called
@@ -204,9 +217,9 @@ bool GLimp_Init(glimpParms_t parms) {
 #else // SDL1.2
 		flags |= SDL_WINDOW_FULLSCREEN;
 #endif
-
+#ifndef ANDROID
 	}
-
+#endif
 	r_windowResizable.ClearModified();
 #if SDL_VERSION_ATLEAST(2, 0, 0)
 	flags |= SDL_WINDOW_ALLOW_HIGHDPI;
@@ -482,11 +495,19 @@ try_again:
 		}
 
 	#else // SDL2
+#ifndef ANDROID
 		window = SDL_CreateWindow(ENGINE_VERSION,
 									SDL_WINDOWPOS_UNDEFINED_DISPLAY(selectedDisplay),
 									SDL_WINDOWPOS_UNDEFINED_DISPLAY(selectedDisplay),
 									parms.width, parms.height, flags);
-
+#else
+		SDL_Log(g_useGLES2_0 ? "Legacy OpenGL ES 2.0 is using for rendering" :
+				"OpenGL ES 3.0 is using for rendering");
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, g_useGLES2_0 ? 2 : 3);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+		window = SDL_CreateWindow(ENGINE_VERSION,0,0 ,0, 0, flags);
+#endif
 		if (!window) {
 			common->Warning("Couldn't set GL mode %d/%d/%d with %dx MSAA: %s",
 							channelcolorbits, tdepthbits, tstencilbits, parms.multiSamples, SDL_GetError());
@@ -506,7 +527,7 @@ try_again:
 			parms.multiSamples = multisamples;
 			r_multiSamples.SetInteger(multisamples);
 		}
-
+#ifndef ANDROID
 		/* Check if we're really in the requested display mode. There is
 		   (or was) an SDL bug were SDL switched into the wrong mode
 		   without giving an error code. See the bug report for details:
@@ -575,6 +596,7 @@ try_again:
 				common->Warning("Now we have the requested resolution (%d x %d)\n", parms.width, parms.height);
 			}
 		}
+	#endif
 	#endif // SDL2
 
 		context = SDL_GL_CreateContext(window);
@@ -584,11 +606,15 @@ try_again:
 
 		// for HighDPI, window size and drawable size can differ
 		GLimp_UpdateWindowSize();
-
+#ifndef ANDROID
 		SetSDLIcon(); // for SDL2  this must be done after creating the window
-
+#endif
 		// TODO: also check for fullscreen-desktop?
+#ifndef ANDROID
 		glConfig.isFullscreen = (SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN) != 0;
+#else
+		glConfig.isFullscreen = true;
+#endif
 		const char* fsStr = glConfig.isFullscreen ? "fullscreen " : "";
 		if ( (int)glConfig.winWidth != glConfig.vidWidth ) {
 			common->Printf( "Got a HighDPI %swindow with physical resolution %d x %d and virtual resolution %g x %g\n",
@@ -809,6 +835,9 @@ GLimp_SetScreenParms
 ===================
 */
 bool GLimp_SetScreenParms(glimpParms_t parms) {
+#if ANDROID
+	return true;
+#else
 #if SDL_VERSION_ATLEAST(2, 0, 0)
 	glimpParms_t curState = GLimp_GetCurState();
 
@@ -848,6 +877,7 @@ bool GLimp_SetScreenParms(glimpParms_t parms) {
 			SDL_SetWindowFullscreen( window, 0 );
 		}
 
+#ifndef ANDROID
 	#if SDL_VERSION_ATLEAST(3, 0, 0)
 		if ( wantFullscreenDesktop ) {
 			SDL_SetWindowFullscreenMode( window, NULL ); // setting it to NULL enables fullscreen desktop mode
@@ -945,14 +975,18 @@ bool GLimp_SetScreenParms(glimpParms_t parms) {
 			}
 		}
 	#endif // SDL2
+#endif
 	}
-
+#ifndef ANDROID
 	glConfig.isFullscreen = (SDL_GetWindowFlags( window ) & SDL_WINDOW_FULLSCREEN) != 0;
-
+#else
+    glConfig.isFullscreen = true;
+#endif
 	return true;
 
 #else // SDL1.2 - I don't feel like implementing this for old SDL, just do a full vid_restart, like before
 	return false;
+#endif
 #endif
 }
 
@@ -988,8 +1022,13 @@ float GLimp_GetDisplayRefresh()
 	return mode->refresh_rate;
 #elif SDL_VERSION_ATLEAST(2, 0, 0)
 	My_SDL_WindowFlags winFlags = SDL_GetWindowFlags( window );
+#ifndef ANDROID
 	bool isFullScreen = (winFlags & SDL_WINDOW_FULLSCREEN) != 0;
 	bool isFullScreenDesktop = (winFlags & SDL_WINDOW_FULLSCREEN_DESKTOP) == SDL_WINDOW_FULLSCREEN_DESKTOP;
+#else
+	bool isFullScreen = false;
+	bool isFullScreenDesktop = true;
+#endif
 	if ( isFullScreen && !isFullScreenDesktop ) { // I think SDL_GetWindowDisplayMode() is only for "real" fullscreen?
 		SDL_DisplayMode real_mode = {};
 		if ( SDL_GetWindowDisplayMode( window, &real_mode ) == 0 ) {
@@ -1022,7 +1061,11 @@ glimpParms_t GLimp_GetCurState()
 
 #if SDL_VERSION_ATLEAST(2, 0, 0)
 	My_SDL_WindowFlags winFlags = SDL_GetWindowFlags( window );
+#ifndef ANDROID
 	ret.fullScreen = (winFlags & SDL_WINDOW_FULLSCREEN) != 0;
+#else
+	ret.fullScreen = false;
+#endif
 	int curMultiSamples = 0;
 
   #if SDL_VERSION_ATLEAST(3, 0, 0)
@@ -1055,7 +1098,11 @@ glimpParms_t GLimp_GetCurState()
 		curMultiSamples = 0; // SDL_GL_GetAttribute() call failed, assume no MSAA
 	}
 
+#ifndef ANDROID
 	ret.fullScreenDesktop = (winFlags & SDL_WINDOW_FULLSCREEN_DESKTOP) == SDL_WINDOW_FULLSCREEN_DESKTOP;
+#else
+	ret.fullScreenDesktop = true;
+#endif
 	if ( ret.fullScreen && !ret.fullScreenDesktop ) { // I think SDL_GetWindowDisplayMode() is only for "real" fullscreen?
 		SDL_DisplayMode real_mode = {};
 		if ( SDL_GetWindowDisplayMode( window, &real_mode ) == 0 ) {
@@ -1071,16 +1118,21 @@ glimpParms_t GLimp_GetCurState()
 	ret.multiSamples = curMultiSamples;
 
 	if ( ret.width == 0 && ret.height == 0 ) { // windowed mode, fullscreen-desktop mode or SDL_GetWindowDisplayMode() failed
+#ifndef ANDROID
 		SDL_GetWindowSize( window, &ret.width, &ret.height );
+#else
+		SDL_GL_GetDrawableSize(window, &ret.width, &ret.height );
+#endif
 	}
 
 	if ( ret.displayHz == 0 ) {
 		ret.displayHz = roundf(GLimp_GetDisplayRefresh());
 	}
 
+#ifndef ANDROID
 	assert( ret.width == glConfig.winWidth && ret.height == glConfig.winHeight );
 	assert( ret.fullScreen == glConfig.isFullscreen );
-
+#endif
 #else
 	assert( 0 && "Don't use GLimp_GetCurState() with SDL1.2 !" );
 #endif
@@ -1341,7 +1393,11 @@ void GLimp_UpdateWindowSize()
 			glConfig.winWidth = dm.w;
 			glConfig.winHeight = dm.h;
 			int ww=0, wh=0;
+#ifndef ANDROID
 			SDL_GetWindowSize( window, &ww, &wh );
+#else
+			SDL_GL_GetDrawableSize( window, &ww, &wh);
+#endif
 		} else {
 			common->Warning( "GLimp_UpdateWindowSize(): SDL_GetWindowDisplayMode() failed: %s\n", SDL_GetError() );
 		}
@@ -1349,7 +1405,11 @@ void GLimp_UpdateWindowSize()
   #endif // SDL2
 	  else {
 		int ww=0, wh=0;
+#ifndef ANDROID
 		SDL_GetWindowSize( window, &ww, &wh );
+#else
+		SDL_GL_GetDrawableSize( window, &ww, &wh );
+#endif
 		glConfig.winWidth = ww;
 		glConfig.winHeight = wh;
 	}
