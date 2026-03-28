@@ -196,7 +196,11 @@ bool GLimp_Init(glimpParms_t parms) {
 			flags |= SDL_WINDOW_FULLSCREEN;
 		}
 #elif SDL_VERSION_ATLEAST(2, 0, 0)
+#ifndef ANDROID
 		flags |= parms.fullScreenDesktop ? SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_WINDOW_FULLSCREEN;
+#else
+		flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+#endif
 #else // SDL1.2
 		flags |= SDL_WINDOW_FULLSCREEN;
 #endif
@@ -206,11 +210,11 @@ bool GLimp_Init(glimpParms_t parms) {
 	r_windowResizable.ClearModified();
 #if SDL_VERSION_ATLEAST(2, 0, 0)
 	flags |= SDL_WINDOW_ALLOW_HIGHDPI;
-
+#ifndef ANDROID
 	if ( r_windowResizable.GetBool() ) {
 		flags |= SDL_WINDOW_RESIZABLE;
 	}
-
+#endif
 	/* Doom3 has the nasty habit of modifying the default framebuffer's alpha channel and then
 	 * relying on those modifications in blending operations (using GL_DST_(ONE_MINUS_)ALPHA).
 	 * So far that hasn't been much of a problem, because Windows, macOS, X11 etc
