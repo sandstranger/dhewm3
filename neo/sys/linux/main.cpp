@@ -80,10 +80,6 @@ static char path_argv[PATH_MAX];
 static char path_exe[PATH_MAX];
 static char save_path[PATH_MAX];
 
-#if ANDROID
-char* nativeLibsPath;
-#endif
-
 const char* Posix_GetSavePath()
 {
 	return save_path;
