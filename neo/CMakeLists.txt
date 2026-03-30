@@ -258,93 +258,114 @@ else()
 endif()
 
 if(VULKAN_RENDERER)
-	if(NOT Vulkan_FOUND)
-		message(FATAL_ERROR "VULKAN_RENDERER is enabled but Vulkan SDK was not found")
-	endif()
-	message(STATUS "Vulkan renderer enabled (Vulkan ${Vulkan_VERSION})")
-	add_definitions(-DID_VULKAN)
-	include_directories(${Vulkan_INCLUDE_DIRS})
+    if(NOT Vulkan_FOUND)
+        message(FATAL_ERROR "VULKAN_RENDERER is enabled but Vulkan SDK was not found")
+    endif()
+    message(STATUS "Vulkan renderer enabled (Vulkan ${Vulkan_VERSION})")
+    add_definitions(-DID_VULKAN)
+    include_directories(${Vulkan_INCLUDE_DIRS})
 
-	# SPIR-V shader compilation and embedding
-	find_program(GLSLANG_VALIDATOR glslangValidator)
-	if(GLSLANG_VALIDATOR)
-		message(STATUS "Found glslangValidator: ${GLSLANG_VALIDATOR}")
-		set(GLSL_SHADER_DIR "${CMAKE_SOURCE_DIR}/glslprogs")
-		set(SPIRV_OUTPUT_DIR "${CMAKE_BINARY_DIR}/glslprogs")
-		set(SPIRV_HEADER_DIR "${CMAKE_BINARY_DIR}/generated")
-		file(MAKE_DIRECTORY ${SPIRV_OUTPUT_DIR})
-		file(MAKE_DIRECTORY ${SPIRV_HEADER_DIR})
+    find_program(GLSLANG_VALIDATOR glslangValidator)
+    find_program(SPIRV_OPT spirv-opt)
 
-		# Make the generated headers available to the build
-		include_directories(${CMAKE_BINARY_DIR})
+    if(GLSLANG_VALIDATOR)
+        message(STATUS "Found glslangValidator: ${GLSLANG_VALIDATOR}")
+        if(SPIRV_OPT)
+            message(STATUS "Found spirv-opt: ${SPIRV_OPT}")
+            set(OPTIMIZE_FLAG 1)
+        else()
+            message(WARNING "spirv-opt not found — SPIR-V will not be optimized")
+            set(OPTIMIZE_FLAG 0)
+        endif()
 
-		file(GLOB GLSL_SOURCES "${GLSL_SHADER_DIR}/*.vert" "${GLSL_SHADER_DIR}/*.frag")
-		set(SPIRV_HEADER_OUTPUTS "")
-		foreach(GLSL_SRC ${GLSL_SOURCES})
-			get_filename_component(GLSL_NAME ${GLSL_SRC} NAME)
-			set(SPIRV_OUT "${SPIRV_OUTPUT_DIR}/${GLSL_NAME}.spv")
-			# Convert e.g. "depth_fill.vert.spv" to "depth_fill_vert_spv"
-			string(REPLACE "." "_" ARRAY_NAME "${GLSL_NAME}_spv")
-			set(HEADER_OUT "${SPIRV_HEADER_DIR}/${ARRAY_NAME}.h")
+        set(GLSL_SHADER_DIR "${CMAKE_SOURCE_DIR}/glslprogs")
+        set(SPIRV_OUTPUT_DIR "${CMAKE_BINARY_DIR}/glslprogs")
+        set(SPIRV_HEADER_DIR "${CMAKE_BINARY_DIR}/generated")
+        file(MAKE_DIRECTORY ${SPIRV_OUTPUT_DIR})
+        file(MAKE_DIRECTORY ${SPIRV_HEADER_DIR})
 
-			add_custom_command(
-				OUTPUT ${SPIRV_OUT}
-				COMMAND ${GLSLANG_VALIDATOR} -V ${GLSL_SRC} -o ${SPIRV_OUT}
-				DEPENDS ${GLSL_SRC}
-				COMMENT "Compiling SPIR-V: ${GLSL_NAME}"
-			)
-			add_custom_command(
-				OUTPUT ${HEADER_OUT}
-				COMMAND ${CMAKE_COMMAND}
-					-DINPUT_FILE=${SPIRV_OUT}
-					-DOUTPUT_FILE=${HEADER_OUT}
-					-DARRAY_NAME=${ARRAY_NAME}
-					-P ${CMAKE_SOURCE_DIR}/sys/cmake/SpirvToHeader.cmake
-				DEPENDS ${SPIRV_OUT}
-				COMMENT "Embedding SPIR-V: ${GLSL_NAME} -> ${ARRAY_NAME}.h"
-			)
-			list(APPEND SPIRV_HEADER_OUTPUTS ${HEADER_OUT})
-		endforeach()
+        include_directories(${CMAKE_BINARY_DIR})
 
-		# RT shaders: .rgen, .rmiss, .rchit require SPIR-V 1.4 (--target-env vulkan1.2)
-		set(RT_SHADER_SOURCES
-			rt_raygen.rgen
-			rt_miss.rmiss
-			rt_shadow_miss.rmiss
-			rt_hit.rchit
-		)
-		foreach(RT_SRC ${RT_SHADER_SOURCES})
-			set(RT_GLSL_FULL "${GLSL_SHADER_DIR}/${RT_SRC}")
-			set(RT_SPIRV_OUT "${SPIRV_OUTPUT_DIR}/${RT_SRC}.spv")
-			string(REPLACE "." "_" RT_ARRAY_NAME "${RT_SRC}_spv")
-			set(RT_HEADER_OUT "${SPIRV_HEADER_DIR}/${RT_ARRAY_NAME}.h")
+        file(GLOB GLSL_SOURCES "${GLSL_SHADER_DIR}/*.vert" "${GLSL_SHADER_DIR}/*.frag")
+        set(SPIRV_HEADER_OUTPUTS "")
+        foreach(GLSL_SRC ${GLSL_SOURCES})
+            get_filename_component(GLSL_NAME ${GLSL_SRC} NAME)
+            set(SPIRV_OUT "${SPIRV_OUTPUT_DIR}/${GLSL_NAME}.spv")
+            string(REPLACE "." "_" ARRAY_NAME "${GLSL_NAME}_spv")
+            set(HEADER_OUT "${SPIRV_HEADER_DIR}/${ARRAY_NAME}.h")
 
-			add_custom_command(
-				OUTPUT ${RT_SPIRV_OUT}
-				COMMAND ${GLSLANG_VALIDATOR} --target-env vulkan1.2 -V
-				        ${RT_GLSL_FULL} -o ${RT_SPIRV_OUT}
-				DEPENDS ${RT_GLSL_FULL}
-				COMMENT "Compiling RT SPIR-V: ${RT_SRC}"
-			)
-			add_custom_command(
-				OUTPUT ${RT_HEADER_OUT}
-				COMMAND ${CMAKE_COMMAND}
-					-DINPUT_FILE=${RT_SPIRV_OUT}
-					-DOUTPUT_FILE=${RT_HEADER_OUT}
-					-DARRAY_NAME=${RT_ARRAY_NAME}
-					-P ${CMAKE_SOURCE_DIR}/sys/cmake/SpirvToHeader.cmake
-				DEPENDS ${RT_SPIRV_OUT}
-				COMMENT "Embedding RT SPIR-V: ${RT_SRC} -> ${RT_ARRAY_NAME}.h"
-			)
-			list(APPEND SPIRV_HEADER_OUTPUTS ${RT_HEADER_OUT})
-		endforeach()
+            add_custom_command(
+                OUTPUT ${SPIRV_OUT}
+                COMMAND ${CMAKE_COMMAND}
+                    -DGLSLANG_VALIDATOR=${GLSLANG_VALIDATOR}
+                    -DSPIRV_OPT=${SPIRV_OPT}
+                    -DINPUT=${GLSL_SRC}
+                    -DOUTPUT=${SPIRV_OUT}
+                    -DTARGET_ENV=vulkan1.0
+                    -DOPTIMIZE=${OPTIMIZE_FLAG}
+                    -P ${CMAKE_CURRENT_SOURCE_DIR}/sys/cmake/CompileShader.cmake
+                DEPENDS ${GLSL_SRC}
+                COMMENT "Compiling and optimizing SPIR-V: ${GLSL_NAME}"
+            )
 
-		add_custom_target(spirv_shaders DEPENDS ${SPIRV_HEADER_OUTPUTS})
-	else()
-		message(WARNING "glslangValidator not found — SPIR-V shaders will not be compiled")
-	endif()
+            add_custom_command(
+                OUTPUT ${HEADER_OUT}
+                COMMAND ${CMAKE_COMMAND}
+                    -DINPUT_FILE=${SPIRV_OUT}
+                    -DOUTPUT_FILE=${HEADER_OUT}
+                    -DARRAY_NAME=${ARRAY_NAME}
+                    -P ${CMAKE_CURRENT_SOURCE_DIR}/sys/cmake/SpirvToHeader.cmake
+                DEPENDS ${SPIRV_OUT}
+                COMMENT "Embedding SPIR-V: ${GLSL_NAME} -> ${ARRAY_NAME}.h"
+            )
+            list(APPEND SPIRV_HEADER_OUTPUTS ${HEADER_OUT})
+        endforeach()
+
+        set(RT_SHADER_SOURCES
+            rt_raygen.rgen
+            rt_miss.rmiss
+            rt_shadow_miss.rmiss
+            rt_hit.rchit
+        )
+        foreach(RT_SRC ${RT_SHADER_SOURCES})
+            set(RT_GLSL_FULL "${GLSL_SHADER_DIR}/${RT_SRC}")
+            set(RT_SPIRV_OUT "${SPIRV_OUTPUT_DIR}/${RT_SRC}.spv")
+            string(REPLACE "." "_" RT_ARRAY_NAME "${RT_SRC}_spv")
+            set(RT_HEADER_OUT "${SPIRV_HEADER_DIR}/${RT_ARRAY_NAME}.h")
+
+            add_custom_command(
+                OUTPUT ${RT_SPIRV_OUT}
+                COMMAND ${CMAKE_COMMAND}
+                    -DGLSLANG_VALIDATOR=${GLSLANG_VALIDATOR}
+                    -DSPIRV_OPT=${SPIRV_OPT}
+                    -DINPUT=${RT_GLSL_FULL}
+                    -DOUTPUT=${RT_SPIRV_OUT}
+                    -DTARGET_ENV=vulkan1.2
+                    -DOPTIMIZE=${OPTIMIZE_FLAG}
+                    -P ${CMAKE_CURRENT_SOURCE_DIR}/sys/cmake/CompileShader.cmake
+                DEPENDS ${RT_GLSL_FULL}
+                COMMENT "Compiling and optimizing RT SPIR-V: ${RT_SRC}"
+            )
+
+            add_custom_command(
+                OUTPUT ${RT_HEADER_OUT}
+                COMMAND ${CMAKE_COMMAND}
+                    -DINPUT_FILE=${RT_SPIRV_OUT}
+                    -DOUTPUT_FILE=${RT_HEADER_OUT}
+                    -DARRAY_NAME=${RT_ARRAY_NAME}
+                    -P ${CMAKE_CURRENT_SOURCE_DIR}/sys/cmake/SpirvToHeader.cmake
+                DEPENDS ${RT_SPIRV_OUT}
+                COMMENT "Embedding RT SPIR-V: ${RT_SRC} -> ${RT_ARRAY_NAME}.h"
+            )
+            list(APPEND SPIRV_HEADER_OUTPUTS ${RT_HEADER_OUT})
+        endforeach()
+
+        add_custom_target(spirv_shaders DEPENDS ${SPIRV_HEADER_OUTPUTS})
+    else()
+        message(WARNING "glslangValidator not found — SPIR-V shaders will not be compiled")
+    endif()
 else()
-	message(STATUS "Vulkan renderer disabled")
+    message(STATUS "Vulkan renderer disabled")
 endif()
 
 if(DEFINED ENV{MSYSTEM})
