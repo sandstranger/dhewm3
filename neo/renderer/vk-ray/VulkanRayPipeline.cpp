@@ -458,7 +458,16 @@ bool idVulkanRayPipelineManager::CreatePipeline() {
 	return true;
 }
 
+#if ANDROID
+extern PFN_vkGetPhysicalDeviceProperties2 p_vkGetPhysicalDeviceProperties2;
+#endif
+
 bool idVulkanRayPipelineManager::CreateSBT() {
+#if ANDROID
+    if (p_vkGetPhysicalDeviceProperties2 == nullptr){
+        return false;
+    }
+#endif
 	// Query RT pipeline properties for handle size and alignment
 	VkPhysicalDeviceRayTracingPipelinePropertiesKHR rtProps = {};
 	rtProps.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR;
@@ -466,7 +475,11 @@ bool idVulkanRayPipelineManager::CreateSBT() {
 	VkPhysicalDeviceProperties2 props2 = {};
 	props2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
 	props2.pNext = &rtProps;
+#ifndef ANDROID
 	vkGetPhysicalDeviceProperties2( physicalDevice, &props2 );
+#else
+    p_vkGetPhysicalDeviceProperties2(physicalDevice, &props2);
+#endif
 
 	uint32_t handleSize      = rtProps.shaderGroupHandleSize;
 	uint32_t handleAlignment = rtProps.shaderGroupHandleAlignment;

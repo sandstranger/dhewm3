@@ -67,6 +67,18 @@ extern bool			VkImp_Init( glimpParms_t parms );
 extern void			VkImp_Shutdown();
 extern SDL_Window *	VkImp_GetWindow();
 
+#if ANDROID
+PFN_vkGetPhysicalDeviceProperties2 p_vkGetPhysicalDeviceProperties2 = nullptr;
+
+static void InitVulkanDeviceFunctions(VkInstance instance)
+{
+	p_vkGetPhysicalDeviceProperties2 =
+			(PFN_vkGetPhysicalDeviceProperties2)
+					vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceProperties2");
+}
+#endif
+
+
 // ============================================================================
 // Vulkan debug callback
 // ============================================================================
@@ -818,6 +830,9 @@ bool idVulkanRenderBackendPlatform::Init( const renderBackendConfig_t &config ) 
 	vkState.swapchainImageViews = swapchainImageViews;
 
 	initialized = true;
+#if ANDROID
+	InitVulkanDeviceFunctions(instance);
+#endif
 	return true;
 }
 

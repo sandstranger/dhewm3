@@ -62,6 +62,11 @@ If you have questions concerning this license or the applicable additional terms
 #include "GameCallbacks_local.h"
 #include "Session_local.h" // DG: For FT_IsDemo/isDemo() hack
 
+#if ANDROID
+#include <string>
+using namespace std;
+#endif
+
 #define	MAX_PRINT_MSG_SIZE	4096
 #define MAX_WARNING_LIST	256
 
@@ -158,7 +163,7 @@ idGameEdit *	gameEdit = NULL;
 #endif
 
 #if ANDROID
-static char* nativeLibsPath;
+static string nativeLibsPath;
 #endif
 
 // writes si_version to the config file - in a kinda obfuscated way
@@ -2711,7 +2716,7 @@ void idCommonLocal::LoadGameDLLbyName( const char *dll, idStr& s ) {
 		}
     #elif ANDROID
     if (!gameDLL) {
-        s = nativeLibsPath;
+        s = nativeLibsPath.c_str();
         s.AppendPath(dll);
         gameDLL = sys->DLL_Load(s);
     }
