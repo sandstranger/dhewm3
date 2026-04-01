@@ -167,8 +167,8 @@ static string nativeLibsPath;
 
 extern "C"{
 	__attribute__((used)) __attribute__((visibility("default")))
-    void setPathToNativeLibDir (const char* pathToNativeLibDir){
-		nativeLibsPath = pathToNativeLibDir;
+	void setPathToNativeLibsFolder (const char* pathToNativeLibsFolder){
+		nativeLibsPath = pathToNativeLibsFolder;
 	}
 }
 
