@@ -40,8 +40,13 @@ If you have questions concerning this license or the applicable additional terms
 #include "sys/posix/posix_public.h"
 #include "sys/sys_local.h"
 
-#include <locale.h>
+#include <clocale>
 
+#if ANDROID
+#include <string>
+
+using namespace std;
+#endif
 
 
 #undef snprintf // no, I don't want to use idStr::snPrintf() here.
@@ -80,6 +85,11 @@ static char path_argv[PATH_MAX];
 static char path_exe[PATH_MAX];
 static char save_path[PATH_MAX];
 
+#if ANDROID
+static string pathToHomeFolder;
+static string pathToResourcesFolder;
+#endif
+
 const char* Posix_GetSavePath()
 {
 	return save_path;
@@ -87,11 +97,15 @@ const char* Posix_GetSavePath()
 
 static void SetSavePath()
 {
+#ifndef ANDROID
 	const char* s = getenv("XDG_DATA_HOME");
 	if (s)
 		D3_snprintfC99(save_path, sizeof(save_path), "%s/dhewm3", s);
 	else
 		D3_snprintfC99(save_path, sizeof(save_path), "%s/.local/share/dhewm3", getenv("HOME"));
+#else
+		D3_snprintfC99(save_path, sizeof(save_path), "%s", pathToHomeFolder.c_str());
+#endif
 }
 
 const char* Posix_GetExePath()
@@ -101,8 +115,7 @@ const char* Posix_GetExePath()
 
 static void SetExecutablePath(char* exePath)
 {
-	// !!! this assumes that exePath can hold PATH_MAX chars !!!
-
+#ifndef ANDROID
 #ifdef _WIN32
 	WCHAR wexePath[PATH_MAX];
 	DWORD len;
@@ -182,6 +195,7 @@ static void SetExecutablePath(char* exePath)
 #warning "SetExecutablePath() is unimplemented on this platform"
 
 #endif
+#endif
 }
 
 bool Sys_GetPath(sysPath_t type, idStr &path) {
@@ -193,6 +207,7 @@ bool Sys_GetPath(sysPath_t type, idStr &path) {
 
 	switch(type) {
 	case PATH_BASE:
+#ifndef ANDROID
 		if (stat(BUILD_DATADIR, &st) != -1 && S_ISDIR(st.st_mode)) {
 			path = BUILD_DATADIR;
 			return true;
@@ -229,30 +244,46 @@ bool Sys_GetPath(sysPath_t type, idStr &path) {
 
 		return false;
 
+#else
+		path = pathToResourcesFolder.c_str();
+		return true;
+#endif
 	case PATH_CONFIG:
+#ifndef ANDROID
 		s = getenv("XDG_CONFIG_HOME");
 		if (s)
 			idStr::snPrintf(buf, sizeof(buf), "%s/dhewm3", s);
 		else
 			idStr::snPrintf(buf, sizeof(buf), "%s/.config/dhewm3", getenv("HOME"));
-
+#else
+		idStr::snPrintf(buf, sizeof(buf), "%s", pathToHomeFolder.c_str());
+#endif
 		path = buf;
 		return true;
 
 	case PATH_SAVE:
+#ifndef ANDROID
 		if(save_path[0] != '\0') {
 			path = save_path;
 			return true;
 		}
 		return false;
-
+#else
+		path = save_path;
+		return true;
+#endif
 	case PATH_EXE:
+#ifndef ANDROID
 		if (path_exe[0] != '\0') {
 			path = path_exe;
 			return true;
 		}
-
 		return false;
+
+#else
+		path = pathToResourcesFolder.c_str();
+		return true;
+#endif
 	}
 
 	return false;

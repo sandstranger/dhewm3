@@ -164,6 +164,14 @@ idGameEdit *	gameEdit = NULL;
 
 #if ANDROID
 static string nativeLibsPath;
+
+extern "C"{
+	__attribute__((used)) __attribute__((visibility("default")))
+    void setPathToNativeLibDir (const char* pathToNativeLibDir){
+		nativeLibsPath = pathToNativeLibDir;
+	}
+}
+
 #endif
 
 // writes si_version to the config file - in a kinda obfuscated way

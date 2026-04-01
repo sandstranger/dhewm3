@@ -51,6 +51,8 @@
 
 #if defined(_WIN32) && defined(_MSC_VER)
   #define z_off64_t __int64
+#elif defined(__ANDROID__)
+  #define z_off64_t off64_t
 #else
   #include <stdint.h>
   #define z_off64_t int64_t
