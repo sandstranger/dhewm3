@@ -86,8 +86,8 @@ static char path_exe[PATH_MAX];
 static char save_path[PATH_MAX];
 
 #if ANDROID
-static string pathToHomeFolder;
-static string pathToResourcesFolder;
+static string g_pathToHomeFolder;
+static string g_pathToResourcesFolder;
 #endif
 
 const char* Posix_GetSavePath()
@@ -104,7 +104,7 @@ static void SetSavePath()
 	else
 		D3_snprintfC99(save_path, sizeof(save_path), "%s/.local/share/dhewm3", getenv("HOME"));
 #else
-		D3_snprintfC99(save_path, sizeof(save_path), "%s", pathToHomeFolder.c_str());
+		D3_snprintfC99(save_path, sizeof(save_path), "%s", g_pathToHomeFolder.c_str());
 #endif
 }
 
@@ -245,7 +245,7 @@ bool Sys_GetPath(sysPath_t type, idStr &path) {
 		return false;
 
 #else
-		path = pathToResourcesFolder.c_str();
+		path = g_pathToResourcesFolder.c_str();
 		return true;
 #endif
 	case PATH_CONFIG:
@@ -256,9 +256,8 @@ bool Sys_GetPath(sysPath_t type, idStr &path) {
 		else
 			idStr::snPrintf(buf, sizeof(buf), "%s/.config/dhewm3", getenv("HOME"));
 #else
-		idStr::snPrintf(buf, sizeof(buf), "%s", pathToHomeFolder.c_str());
+		path = g_pathToHomeFolder.c_str();
 #endif
-		path = buf;
 		return true;
 
 	case PATH_SAVE:
@@ -281,7 +280,7 @@ bool Sys_GetPath(sysPath_t type, idStr &path) {
 		return false;
 
 #else
-		path = pathToResourcesFolder.c_str();
+		path = g_pathToResourcesFolder.c_str();
 		return true;
 #endif
 	}
@@ -438,7 +437,11 @@ void idSysLocal::OpenURL( const char *url, bool quit ) {
 main
 ===============
 */
+#if ANDROID
+int SDL_main(int argc, char **argv) {
+#else
 int main(int argc, char **argv) {
+#endif
 	// Prevent running Doom 3 as root
 	// Borrowed from Yamagi Quake II
 	if (getuid() == 0) {
@@ -448,6 +451,9 @@ int main(int argc, char **argv) {
 
 		return 1;
 	}
+#if ANDROID
+	chdir(g_pathToResourcesFolder.c_str());
+#endif
 	// fallback path to the binary for systems without /proc
 	// while not 100% reliable, its good enough
 	if (argc > 0) {
@@ -457,11 +463,14 @@ int main(int argc, char **argv) {
 		path_argv[0] = 0;
 	}
 
+#ifndef ANDROID
 	SetExecutablePath(path_exe);
 	if (path_exe[0] == '\0') {
 		memcpy(path_exe, path_argv, sizeof(path_exe));
 	}
-
+#else
+	D3_snprintfC99(path_exe, sizeof(path_exe), "%s", g_pathToResourcesFolder.c_str());
+#endif
 	SetSavePath();
 
 	// some ladspa-plugins (that may be indirectly loaded by doom3 if they're
@@ -483,4 +492,38 @@ int main(int argc, char **argv) {
 		common->Frame();
 	}
 	return 0;
+}
+
+
+extern "C"{
+__attribute__((used)) __attribute__((visibility("default")))
+void onNativeResume() {
+}
+
+__attribute__((used)) __attribute__((visibility("default")))
+void onNativePause() {
+}
+
+__attribute__((used)) __attribute__((visibility("default")))
+bool needToShowScreenControls() {
+	return true;
+}
+__attribute__((used)) __attribute__((visibility("default")))
+bool needToInvokeMouseButtonsEvents(){
+	return true;
+}
+__attribute__((used)) __attribute__((visibility("default")))
+bool needToReInitGameControllers (){
+	return false;
+}
+
+__attribute__((used)) __attribute__((visibility("default")))
+void setPathsToResources (const char *pathToHomeFolder, const char *pathToResourcesFolder) {
+	g_pathToHomeFolder = pathToHomeFolder;
+	g_pathToResourcesFolder = pathToResourcesFolder;
+}
+
+__attribute__((used)) __attribute__((visibility("default")))
+void setPathToSDLControllerDB (const char *pathToSDLControllerDB){
+}
 }
