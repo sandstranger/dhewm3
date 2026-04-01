@@ -26,7 +26,7 @@ If you have questions concerning this license or the applicable additional terms
 ===========================================================================
 */
 
-#include <errno.h>
+#include <cerrno>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -43,6 +43,7 @@ If you have questions concerning this license or the applicable additional terms
 #include <clocale>
 
 #if ANDROID
+#include "SDL_main.h"
 #include <string>
 
 using namespace std;
@@ -438,6 +439,7 @@ main
 ===============
 */
 #if ANDROID
+__attribute__((used)) __attribute__((visibility("default")))
 int SDL_main(int argc, char **argv) {
 #else
 int main(int argc, char **argv) {
