@@ -2684,6 +2684,7 @@ Helper for LoadGameDLL() to make it less painful to try different dll names.
 =================
 */
 void idCommonLocal::LoadGameDLLbyName( const char *dll, idStr& s ) {
+#ifndef ANDROID
 	// try fs_dllpath first, if set
 	const char* dllpath = cvarSystem->GetCVarString("fs_gameDllPath");
 	if (dllpath != NULL && dllpath[0] != '\0') {
@@ -2691,7 +2692,7 @@ void idCommonLocal::LoadGameDLLbyName( const char *dll, idStr& s ) {
 		s.AppendPath(dll);
 		gameDLL = sys->DLL_Load(s);
 	}
-
+#endif
 	#if defined(__AROS__)
 	if (!gameDLL) {
 		s.CapLength(0);
@@ -2705,6 +2706,7 @@ void idCommonLocal::LoadGameDLLbyName( const char *dll, idStr& s ) {
 	}
 	#endif
 
+#ifndef ANDROID
 	// try next to the binary second (build tree)
 	if (!gameDLL && Sys_GetPath(PATH_EXE, s)) {
 		// "s = " seems superfluous, but works around g++ 4.7 bug else StripFilename()
@@ -2713,7 +2715,7 @@ void idCommonLocal::LoadGameDLLbyName( const char *dll, idStr& s ) {
 		s.AppendPath(dll);
 		gameDLL = sys->DLL_Load(s);
 	}
-
+#endif
 	#if defined(_WIN32)
 		// then the lib/ dir relative to the binary on windows
 		if (!gameDLL && Sys_GetPath(PATH_EXE, s)) {
@@ -2774,8 +2776,10 @@ void idCommonLocal::LoadGameDLL( void ) {
 	gameDLL = 0;
 
 #if ANDROID
-    strcpy(dll,"/libbase-dhewm3.so");
+    strcpy(dll,"libbase-dhewm3.so");
+    LoadGameDLLbyName(dll, s);
 #else
+    LoadGameDLLbyName(dll, s);
 	sys->DLL_GetFileName(fs_game, dll, sizeof(dll));
 	LoadGameDLLbyName(dll, s);
 
