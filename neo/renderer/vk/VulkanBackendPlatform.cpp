@@ -669,7 +669,11 @@ bool idVulkanRenderBackendPlatform::CreateSwapchain( int width, int height ) {
 		swapchainInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	}
 
+#if !ANDROID
 	swapchainInfo.preTransform = caps.currentTransform;
+#else
+    swapchainInfo.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+#endif
 	swapchainInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
 	swapchainInfo.presentMode = presentMode;
 	swapchainInfo.clipped = VK_TRUE;
@@ -828,11 +832,10 @@ bool idVulkanRenderBackendPlatform::Init( const renderBackendConfig_t &config ) 
 	vkState.depthFormat = depthFormat;
 	vkState.swapchainImages = swapchainImages;
 	vkState.swapchainImageViews = swapchainImageViews;
-
-	initialized = true;
 #if ANDROID
-	InitVulkanDeviceFunctions(instance);
+    InitVulkanDeviceFunctions(instance);
 #endif
+	initialized = true;
 	return true;
 }
 
